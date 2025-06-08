@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { Props } from "../utils/upstream-utils";
-import { google, youtubeAnalytics_v2 } from "googleapis";
+import { google } from "googleapis";
 
 export function registerYouTubeAnalyticsTools(server: McpServer, props: Props) {
   const getAnalyticsClient = () => {
@@ -16,7 +16,14 @@ export function registerYouTubeAnalyticsTools(server: McpServer, props: Props) {
     return google.youtube({ version: "v3", auth });
   };
 
-  // Helper function to get channel ID for authenticated user
+  // Helper functions for analytics
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
+  const daysAgo = (days: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return formatDate(date);
+  };
+
   const getMyChannelId = async () => {
     const youtube = getYouTubeClient();
     const response = await youtube.channels.list({
@@ -26,466 +33,85 @@ export function registerYouTubeAnalyticsTools(server: McpServer, props: Props) {
     return response.data.items?.[0]?.id;
   };
 
-  // Helper function to format dates
-  const formatDate = (date: Date) => date.toISOString().split("T")[0];
-  const daysAgo = (days: number) => {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    return formatDate(date);
-  };
-
-  // Tool to get channel performance overview
-  // server.tool(
-  //   "youtube_getChannelAnalytics",
-  //   "Get comprehensive analytics for your YouTube channel including views, revenue, and subscriber growth.",
-  //   {
-  //     timeRange: z
-  //       .enum(["7d", "30d", "90d", "currentMonth"])
-  //       .default("30d")
-  //       .describe("Time range for analytics data"),
-  //   },
-  //   async ({ timeRange }) => {
-  //     try {
-  //       const channelId = await getMyChannelId();
-  //       if (!channelId) {
-  //         throw new Error("Could not retrieve channel ID");
-  //       }
-
-  //       // Calculate date range
-  //       let startDate: string, endDate: string;
-  //       const today = new Date();
-
-  //       switch (timeRange) {
-  //         case "7d":
-  //           startDate = daysAgo(7);
-  //           endDate = daysAgo(1);
-  //           break;
-  //         case "30d":
-  //           startDate = daysAgo(30);
-  //           endDate = daysAgo(1);
-  //           break;
-  //         case "90d":
-  //           startDate = daysAgo(90);
-  //           endDate = daysAgo(1);
-  //           break;
-  //         case "currentMonth":
-  //           startDate = formatDate(new Date(today.getFullYear(), today.getMonth(), 1));
-  //           endDate = formatDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
-  //           break;
-  //       }
-
-  //       const analytics = getAnalyticsClient();
-
-  //       // Get channel analytics
-  //       const response = await analytics.reports.query({
-  //         ids: `channel==${channelId}`,
-  //         startDate,
-  //         endDate,
-  //         metrics: [
-  //           "views",
-  //           "watchTimeMinutes",
-  //           "subscribersGained",
-  //           "subscribersLost",
-  //           "estimatedRevenue",
-  //           "likes",
-  //           "comments",
-  //           "shares"
-  //         ].join(","),
-  //         dimensions: "day",
-  //         sort: "day",
-  //       });
-
-  //       // Get current channel stats
-  //       const youtube = getYouTubeClient();
-  //       const channelResponse = await youtube.channels.list({
-  //         part: ["snippet", "statistics"],
-  //         mine: true,
-  //       });
-
-  //       const channel = channelResponse.data.items?.[0];
-  //       const stats = channel?.statistics;
-
-  //       // Process analytics data
-  //       const rows = response.data.rows || [];
-  //       const totals = rows.reduce((acc: any, row: any[]) => {
-  //         acc.views += row[1] || 0;
-  //         acc.watchTimeMinutes += row[2] || 0;
-  //         acc.subscribersGained += row[3] || 0;
-  //         acc.subscribersLost += row[4] || 0;
-  //         acc.estimatedRevenue += row[5] || 0;
-  //         acc.likes += row[6] || 0;
-  //         acc.comments += row[7] || 0;
-  //         acc.shares += row[8] || 0;
-  //         return acc;
-  //       }, {
-  //         views: 0,
-  //         watchTimeMinutes: 0,
-  //         subscribersGained: 0,
-  //         subscribersLost: 0,
-  //         estimatedRevenue: 0,
-  //         likes: 0,
-  //         comments: 0,
-  //         shares: 0
-  //       });
-
-  //       const result = {
-  //         timeRange,
-  //         period: `${startDate} to ${endDate}`,
-  //         channelInfo: {
-  //           title: channel?.snippet?.title,
-  //           totalSubscribers: parseInt(stats?.subscriberCount || "0"),
-  //           totalViews: parseInt(stats?.viewCount || "0"),
-  //           totalVideos: parseInt(stats?.videoCount || "0"),
-  //         },
-  //         periodAnalytics: {
-  //           views: totals.views.toLocaleString(),
-  //           watchTimeHours: Math.round(totals.watchTimeMinutes / 60).toLocaleString(),
-  //           subscribersGained: totals.subscribersGained,
-  //           subscribersLost: totals.subscribersLost,
-  //           netSubscribers: totals.subscribersGained - totals.subscribersLost,
-  //           estimatedRevenue: `$${totals.estimatedRevenue.toFixed(2)}`,
-  //           likes: totals.likes.toLocaleString(),
-  //           comments: totals.comments.toLocaleString(),
-  //           shares: totals.shares.toLocaleString(),
-  //           engagementRate: totals.views > 0 ?
-  //             `${((totals.likes + totals.comments + totals.shares) / totals.views * 100).toFixed(2)}%` : "0%"
-  //         }
-  //       };
-
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: `📊 **${result.channelInfo.title}** Analytics (${timeRange})\n\n` +
-  //               `📈 **Current Channel Stats:**\n` +
-  //               `• Subscribers: ${result.channelInfo.totalSubscribers.toLocaleString()}\n` +
-  //               `• Total Views: ${result.channelInfo.totalViews.toLocaleString()}\n` +
-  //               `• Total Videos: ${result.channelInfo.totalVideos.toLocaleString()}\n\n` +
-  //               `📊 **Period Performance (${result.period}):**\n` +
-  //               `• Views: ${result.periodAnalytics.views}\n` +
-  //               `• Watch Time: ${result.periodAnalytics.watchTimeHours} hours\n` +
-  //               `• Revenue: ${result.periodAnalytics.estimatedRevenue}\n` +
-  //               `• Subscribers: +${result.periodAnalytics.subscribersGained} / -${result.periodAnalytics.subscribersLost} (net: ${result.periodAnalytics.netSubscribers >= 0 ? '+' : ''}${result.periodAnalytics.netSubscribers})\n` +
-  //               `• Engagement: ${result.periodAnalytics.likes} likes, ${result.periodAnalytics.comments} comments, ${result.periodAnalytics.shares} shares\n` +
-  //               `• Engagement Rate: ${result.periodAnalytics.engagementRate}`
-  //           },
-  //         ],
-  //       };
-  //     } catch (error: any) {
-  //       console.error("Error getting channel analytics:", error);
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: `Error getting channel analytics: ${error.message || String(error)}`,
-  //           },
-  //         ],
-  //       };
-  //     }
-  //   }
-  // );
-
-  // Tool to analyze specific video performance
-  // server.tool(
-  //   "youtube_analyzeVideoPerformance",
-  //   "Get detailed analytics for a specific video including revenue, retention, and traffic sources.",
-  //   {
-  //     videoId: z.string().min(1).describe("The ID of the YouTube video to analyze"),
-  //     timeRange: z
-  //       .enum(["7d", "30d", "90d", "lifetime"])
-  //       .default("30d")
-  //       .describe("Time range for analytics"),
-  //   },
-  //   async ({ videoId, timeRange }) => {
-  //     try {
-  //       // Calculate date range
-  //       let startDate: string, endDate: string;
-
-  //       if (timeRange === "lifetime") {
-  //         // Get video publish date
-  //         const youtube = getYouTubeClient();
-  //         const videoResponse = await youtube.videos.list({
-  //           part: ["snippet"],
-  //           id: [videoId],
-  //         });
-
-  //         if (!videoResponse.data.items?.[0]) {
-  //           throw new Error(`Video ${videoId} not found`);
-  //         }
-
-  //         startDate = videoResponse.data.items[0].snippet?.publishedAt?.split('T')[0] || daysAgo(365);
-  //         endDate = daysAgo(1);
-  //       } else {
-  //         const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
-  //         startDate = daysAgo(days);
-  //         endDate = daysAgo(1);
-  //       }
-
-  //       const analytics = getAnalyticsClient();
-
-  //       // Get video analytics
-  //       const response = await analytics.reports.query({
-  //         ids: `video==${videoId}`,
-  //         startDate,
-  //         endDate,
-  //         metrics: [
-  //           "views",
-  //           "watchTimeMinutes",
-  //           "averageViewDuration",
-  //           "estimatedRevenue",
-  //           "likes",
-  //           "comments",
-  //           "shares",
-  //           "subscribersGained"
-  //         ].join(","),
-  //         dimensions: "day",
-  //         sort: "day",
-  //       });
-
-  //       // Get traffic source data
-  //       const trafficResponse = await analytics.reports.query({
-  //         ids: `video==${videoId}`,
-  //         startDate,
-  //         endDate,
-  //         metrics: "views",
-  //         dimensions: "insightTrafficSourceType",
-  //         sort: "-views",
-  //         maxResults: 10,
-  //       });
-
-  //       // Get video details
-  //       const youtube = getYouTubeClient();
-  //       const videoDetails = await youtube.videos.list({
-  //         part: ["snippet", "statistics", "contentDetails"],
-  //         id: [videoId],
-  //       });
-
-  //       const video = videoDetails.data.items?.[0];
-  //       if (!video) {
-  //         throw new Error(`Video ${videoId} not found`);
-  //       }
-
-  //       // Process analytics data
-  //       const rows = response.data.rows || [];
-  //       const totals = rows.reduce((acc: any, row: any[]) => {
-  //         acc.views += row[1] || 0;
-  //         acc.watchTimeMinutes += row[2] || 0;
-  //         acc.averageViewDuration += row[3] || 0;
-  //         acc.estimatedRevenue += row[4] || 0;
-  //         acc.likes += row[5] || 0;
-  //         acc.comments += row[6] || 0;
-  //         acc.shares += row[7] || 0;
-  //         acc.subscribersGained += row[8] || 0;
-  //         acc.dataPoints += 1;
-  //         return acc;
-  //       }, {
-  //         views: 0,
-  //         watchTimeMinutes: 0,
-  //         averageViewDuration: 0,
-  //         estimatedRevenue: 0,
-  //         likes: 0,
-  //         comments: 0,
-  //         shares: 0,
-  //         subscribersGained: 0,
-  //         dataPoints: 0
-  //       });
-
-  //       // Process traffic sources
-  //       const trafficSources = (trafficResponse.data.rows || []).map((row: any[]) => ({
-  //         source: row[0],
-  //         views: row[1]
-  //       }));
-
-  //       const avgViewDuration = totals.dataPoints > 0 ? totals.averageViewDuration / totals.dataPoints : 0;
-
-  //       const result = {
-  //         videoInfo: {
-  //           title: video.snippet?.title,
-  //           publishedAt: video.snippet?.publishedAt,
-  //           duration: video.contentDetails?.duration,
-  //           currentStats: {
-  //             views: video.statistics?.viewCount,
-  //             likes: video.statistics?.likeCount,
-  //             comments: video.statistics?.commentCount,
-  //           }
-  //         },
-  //         analytics: {
-  //           period: `${startDate} to ${endDate}`,
-  //           views: totals.views.toLocaleString(),
-  //           watchTimeHours: Math.round(totals.watchTimeMinutes / 60).toLocaleString(),
-  //           averageViewDuration: `${Math.round(avgViewDuration / 60)}:${String(Math.round(avgViewDuration % 60)).padStart(2, '0')}`,
-  //           estimatedRevenue: `$${totals.estimatedRevenue.toFixed(2)}`,
-  //           likes: totals.likes.toLocaleString(),
-  //           comments: totals.comments.toLocaleString(),
-  //           shares: totals.shares.toLocaleString(),
-  //           subscribersGained: totals.subscribersGained,
-  //           rpm: totals.views > 0 ? `$${((totals.estimatedRevenue / totals.views) * 1000).toFixed(2)}` : "$0.00"
-  //         },
-  //         trafficSources: trafficSources.slice(0, 5)
-  //       };
-
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: `🎬 **${result.videoInfo.title}** Performance Analysis\n\n` +
-  //               `📊 **Analytics (${result.analytics.period}):**\n` +
-  //               `• Views: ${result.analytics.views}\n` +
-  //               `• Watch Time: ${result.analytics.watchTimeHours} hours\n` +
-  //               `• Avg. View Duration: ${result.analytics.averageViewDuration}\n` +
-  //               `• Revenue: ${result.analytics.estimatedRevenue}\n` +
-  //               `• RPM: ${result.analytics.rpm} per 1,000 views\n` +
-  //               `• Engagement: ${result.analytics.likes} likes, ${result.analytics.comments} comments\n` +
-  //               `• Subscribers Gained: ${result.analytics.subscribersGained}\n\n` +
-  //               `🚦 **Top Traffic Sources:**\n` +
-  //               result.trafficSources.map((source, i) =>
-  //                 `${i + 1}. ${source.source}: ${source.views.toLocaleString()} views`).join('\n')
-  //           },
-  //         ],
-  //       };
-  //     } catch (error: any) {
-  //       console.error(`Error analyzing video ${videoId}:`, error);
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: `Error analyzing video: ${error.message || String(error)}`,
-  //           },
-  //         ],
-  //       };
-  //     }
-  //   }
-  // );
-
-  // Tool to get top performing videos
+  // Tool to get basic channel statistics
   server.tool(
-    "youtube_getTopVideos",
-    "Get your top performing videos by views, revenue, or engagement for a specific time period.",
+    "youtube_getBasicChannelStats",
+    "Get basic statistics for your YouTube channel (subscribers, views, videos).",
     {
-      timeRange: z
-        .enum(["7d", "30d", "90d"])
-        .default("30d")
-        .describe("Time range for performance analysis"),
-      sortBy: z
-        .enum(["views", "estimatedRevenue", "likes", "comments"])
-        .default("views")
-        .describe("Metric to sort videos by"),
-      maxResults: z
-        .number()
-        .int()
-        .min(1)
-        .max(20)
-        .default(10)
-        .describe("Number of top videos to return"),
+      // No parameters needed - just gets your own channel stats
     },
-    async ({ timeRange, sortBy, maxResults }) => {
+    async () => {
       try {
-        const channelId = await getMyChannelId();
-        if (!channelId) {
-          throw new Error("Could not retrieve channel ID");
-        }
-
-        const days = timeRange === "7d" ? 7 : timeRange === "30d" ? 30 : 90;
-        const startDate = daysAgo(days);
-        const endDate = daysAgo(1);
-
-        const analytics = getAnalyticsClient();
-
-        // Get video performance data
-        const response = await analytics.reports.query({
-          ids: `channel==${channelId}`,
-          startDate,
-          endDate,
-          metrics: [
-            "views",
-            "estimatedRevenue",
-            "likes",
-            "comments",
-            "subscribersGained",
-          ].join(","),
-          dimensions: "video",
-          sort: `-${sortBy}`,
-          maxResults,
+        const youtube = getYouTubeClient();
+        
+        // Get channel info and statistics
+        const response = await youtube.channels.list({
+          part: ["snippet", "statistics"],
+          mine: true,
         });
 
-        if (!response.data.rows || response.data.rows.length === 0) {
+        const channel = response.data.items?.[0];
+        
+        if (!channel) {
           return {
             content: [
               {
                 type: "text",
-                text: `No video data found for the ${timeRange} period.`,
+                text: "No YouTube channel found for this account. Please make sure you have a YouTube channel associated with your Google account.",
               },
             ],
           };
         }
 
-        // Get video details for the top videos
-        const videoIds = response.data.rows.map((row) => row[0]);
-        const youtube = getYouTubeClient();
-        const videoDetails = await youtube.videos.list({
-          part: ["snippet"],
-          id: videoIds,
-        });
+        const stats = channel.statistics;
+        const snippet = channel.snippet;
 
-        const videoMap = new Map();
-        videoDetails.data.items?.forEach((video) => {
-          videoMap.set(video.id, video);
-        });
-
-        const topVideos = response.data.rows.map(
-          (row: any[], index: number) => {
-            const videoId = row[0];
-            const video = videoMap.get(videoId);
-
-            return {
-              rank: index + 1,
-              videoId,
-              title: video?.snippet?.title || "Unknown Title",
-              views: parseInt(row[1] || "0").toLocaleString(),
-              revenue: `${(row[2] || 0).toFixed(2)}`,
-              likes: parseInt(row[3] || "0").toLocaleString(),
-              comments: parseInt(row[4] || "0").toLocaleString(),
-              subscribersGained: row[5] || 0,
-              url: `https://www.youtube.com/watch?v=${videoId}`,
-            };
-          }
-        );
-
-        const sortLabel =
-          sortBy === "estimatedRevenue"
-            ? "Revenue"
-            : sortBy === "likes"
-            ? "Likes"
-            : "Views";
+        const result = {
+          channelName: snippet?.title || "Unknown Channel",
+          channelId: channel.id,
+          description: snippet?.description?.substring(0, 200) + "..." || "No description",
+          publishedAt: snippet?.publishedAt || "Unknown",
+          subscriberCount: parseInt(stats?.subscriberCount || "0"),
+          viewCount: parseInt(stats?.viewCount || "0"),
+          videoCount: parseInt(stats?.videoCount || "0"),
+          thumbnailUrl: snippet?.thumbnails?.default?.url || "",
+          customUrl: snippet?.customUrl || "",
+          country: snippet?.country || "Not specified"
+        };
 
         return {
           content: [
             {
               type: "text",
-              text:
-                `🏆 **Top ${maxResults} Videos by ${sortLabel}** (${timeRange})\n\n` +
-                topVideos
-                  .map(
-                    (video) =>
-                      `**${video.rank}. ${video.title}**\n` +
-                      `   • Views: ${video.views} | Revenue: ${video.revenue}\n` +
-                      `   • Likes: ${video.likes} | Comments: ${video.comments}\n` +
-                      `   • Subscribers Gained: ${video.subscribersGained}\n` +
-                      `   • ${video.url}\n`
-                  )
-                  .join("\n"),
+              text: `📺 **${result.channelName}** Channel Stats\n\n` +
+                `🆔 **Channel ID:** ${result.channelId}\n` +
+                `👥 **Subscribers:** ${result.subscriberCount.toLocaleString()}\n` +
+                `👀 **Total Views:** ${result.viewCount.toLocaleString()}\n` +
+                `🎬 **Total Videos:** ${result.videoCount.toLocaleString()}\n` +
+                `📅 **Channel Created:** ${new Date(result.publishedAt).toLocaleDateString()}\n` +
+                `🌍 **Country:** ${result.country}\n` +
+                (result.customUrl ? `🔗 **Custom URL:** youtube.com/${result.customUrl}\n` : "") +
+                `\n📝 **Description:** ${result.description}`
             },
           ],
         };
       } catch (error: any) {
-        console.error("Error getting top videos:", error);
+        console.error("Error getting basic channel stats:", error);
+        
+        let errorMessage = "Error getting channel stats: ";
+        if (error.message?.includes("forbidden") || error.message?.includes("403")) {
+          errorMessage += "Access denied. Please ensure you're authenticated with YouTube.";
+        } else if (error.message?.includes("quotaExceeded")) {
+          errorMessage += "API quota exceeded. Please try again later.";
+        } else {
+          errorMessage += error.message || String(error);
+        }
+        
         return {
           content: [
             {
               type: "text",
-              text: `Error getting top videos: ${
-                error.message || String(error)
-              }`,
+              text: errorMessage,
             },
           ],
         };
@@ -493,102 +119,366 @@ export function registerYouTubeAnalyticsTools(server: McpServer, props: Props) {
     }
   );
 
-  // Tool to get audience demographics
-  // server.tool(
-  //   "youtube_getAudienceDemographics",
-  //   "Get detailed audience demographics including age, gender, and geography for your channel.",
-  //   {
-  //     timeRange: z
-  //       .enum(["30d", "90d"])
-  //       .default("30d")
-  //       .describe("Time range for demographic analysis"),
-  //   },
-  //   async ({ timeRange }) => {
-  //     try {
-  //       const channelId = await getMyChannelId();
-  //       if (!channelId) {
-  //         throw new Error("Could not retrieve channel ID");
-  //       }
+  // Demographics tool
+  server.tool(
+    "youtube_getDemographics",
+    "Get basic audience demographics for your channel (age, gender, top countries).",
+    {
+      days: z
+        .enum(["30", "90"])
+        .default("30")
+        .describe("Number of days to analyze (30 or 90)"),
+    },
+    async ({ days }) => {
+      try {
+        const channelId = await getMyChannelId();
+        if (!channelId) {
+          throw new Error("Could not retrieve channel ID");
+        }
 
-  //       const days = timeRange === "30d" ? 30 : 90;
-  //       const startDate = daysAgo(days);
-  //       const endDate = daysAgo(1);
+        const numDays = parseInt(days);
+        const startDate = daysAgo(numDays);
+        const endDate = daysAgo(1);
+        
+        const analytics = getAnalyticsClient();
 
-  //       const analytics = getAnalyticsClient();
+        // Try to get each demographic separately with error handling
+        let demographicsText = `👥 **Audience Demographics** (Last ${days} days)\n`;
+        demographicsText += `📈 **Period:** ${startDate} to ${endDate}\n\n`;
+        
+        let hasAnyData = false;
 
-  //       // Get age group demographics
-  //       const ageResponse = await analytics.reports.query({
-  //         ids: `channel==${channelId}`,
-  //         startDate,
-  //         endDate,
-  //         metrics: "viewerPercentage",
-  //         dimensions: "ageGroup",
-  //         sort: "-viewerPercentage",
-  //       });
+        // Try age demographics
+        try {
+          const ageResponse = await analytics.reports.query({
+            ids: `channel==${channelId}`,
+            startDate,
+            endDate,
+            metrics: "viewerPercentage",
+            dimensions: "ageGroup",
+            sort: "-viewerPercentage",
+          });
 
-  //       // Get gender demographics
-  //       const genderResponse = await analytics.reports.query({
-  //         ids: `channel==${channelId}`,
-  //         startDate,
-  //         endDate,
-  //         metrics: "viewerPercentage",
-  //         dimensions: "gender",
-  //         sort: "-viewerPercentage",
-  //       });
+          if (ageResponse.data.rows && ageResponse.data.rows.length > 0) {
+            demographicsText += `📊 **Age Groups:**\n`;
+            ageResponse.data.rows.forEach((row: any[]) => {
+              const ageGroup = row[0] || "Unknown";
+              const percentage = ((row[1] || 0) * 100).toFixed(1);
+              demographicsText += `• ${ageGroup}: ${percentage}%\n`;
+            });
+            demographicsText += '\n';
+            hasAnyData = true;
+          }
+        } catch (error) {
+          console.log("Age demographics not available:", error);
+        }
 
-  //       // Get top countries
-  //       const countryResponse = await analytics.reports.query({
-  //         ids: `channel==${channelId}`,
-  //         startDate,
-  //         endDate,
-  //         metrics: "views",
-  //         dimensions: "country",
-  //         sort: "-views",
-  //         maxResults: 10,
-  //       });
+        // Try gender demographics
+        try {
+          const genderResponse = await analytics.reports.query({
+            ids: `channel==${channelId}`,
+            startDate,
+            endDate,
+            metrics: "viewerPercentage",
+            dimensions: "gender",
+            sort: "-viewerPercentage",
+          });
 
-  //       const demographics = {
-  //         ageGroups: (ageResponse.data.rows || []).map((row: any[]) => ({
-  //           ageGroup: row[0],
-  //           percentage: `${(row[1] * 100).toFixed(1)}%`
-  //         })),
-  //         gender: (genderResponse.data.rows || []).map((row: any[]) => ({
-  //           gender: row[0],
-  //           percentage: `${(row[1] * 100).toFixed(1)}%`
-  //         })),
-  //         topCountries: (countryResponse.data.rows || []).map((row: any[], index: number) => ({
-  //           rank: index + 1,
-  //           country: row[0],
-  //           views: parseInt(row[1]).toLocaleString()
-  //         }))
-  //       };
+          if (genderResponse.data.rows && genderResponse.data.rows.length > 0) {
+            demographicsText += `⚧ **Gender Distribution:**\n`;
+            genderResponse.data.rows.forEach((row: any[]) => {
+              const gender = row[0] || "Unknown";
+              const percentage = ((row[1] || 0) * 100).toFixed(1);
+              demographicsText += `• ${gender}: ${percentage}%\n`;
+            });
+            demographicsText += '\n';
+            hasAnyData = true;
+          }
+        } catch (error) {
+          console.log("Gender demographics not available:", error);
+        }
 
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: `👥 **Audience Demographics** (${timeRange})\n\n` +
-  //               `📊 **Age Distribution:**\n` +
-  //               demographics.ageGroups.map(age => `• ${age.ageGroup}: ${age.percentage}`).join('\n') + '\n\n' +
-  //               `⚧ **Gender Distribution:**\n` +
-  //               demographics.gender.map(g => `• ${g.gender}: ${g.percentage}`).join('\n') + '\n\n' +
-  //               `🌍 **Top Countries by Views:**\n` +
-  //               demographics.topCountries.slice(0, 5).map(country =>
-  //                 `${country.rank}. ${country.country}: ${country.views} views`).join('\n')
-  //           },
-  //         ],
-  //       };
-  //     } catch (error: any) {
-  //       console.error("Error getting audience demographics:", error);
-  //       return {
-  //         content: [
-  //           {
-  //             type: "text",
-  //             text: `Error getting demographics: ${error.message || String(error)}`,
-  //           },
-  //         ],
-  //       };
-  //     }
-  //   }
-  // );
+        // Try top countries (this one usually works)
+        try {
+          const countryResponse = await analytics.reports.query({
+            ids: `channel==${channelId}`,
+            startDate,
+            endDate,
+            metrics: "views",
+            dimensions: "country",
+            sort: "-views",
+            maxResults: 10,
+          });
+
+          if (countryResponse.data.rows && countryResponse.data.rows.length > 0) {
+            demographicsText += `🌍 **Top Countries by Views:**\n`;
+            countryResponse.data.rows.slice(0, 5).forEach((row: any[], index: number) => {
+              const country = row[0] || "Unknown";
+              const views = Number(row[1]) || 0;
+              demographicsText += `${index + 1}. ${country}: ${views.toLocaleString()} views\n`;
+            });
+            hasAnyData = true;
+          }
+        } catch (error) {
+          console.log("Country demographics not available:", error);
+        }
+
+        if (!hasAnyData) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No demographic data available for the last ${days} days. This could mean:\n\n` +
+                  `• Your channel needs more watch time to generate demographic insights\n` +
+                  `• Your audience size is too small for detailed demographics\n` +
+                  `• Demographic data is still processing\n` +
+                  `• Your channel may need at least 100+ hours of watch time\n\n` +
+                  `💡 Try the basic analytics tool instead: youtube_getAnalytics`
+              },
+            ],
+          };
+        }
+
+        demographicsText += `\n💡 **Note:** Demographic data requires sufficient audience size and watch time.`;
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: demographicsText,
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting demographics:", error);
+        
+        let errorMessage = "Error getting demographics: ";
+        if (error.message?.includes("forbidden") || error.message?.includes("403")) {
+          errorMessage += "Analytics access denied or insufficient permissions for demographic data.";
+        } else if (error.message?.includes("quotaExceeded")) {
+          errorMessage += "API quota exceeded. Please try again later.";
+        } else if (error.message?.includes("badRequest")) {
+          errorMessage += "Invalid request. Your channel may not have enough data for demographics.";
+        } else {
+          errorMessage += error.message || String(error);
+        }
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Analytics tool - views and subscribers over time
+  server.tool(
+    "youtube_getAnalytics",
+    "Get basic analytics for your channel - views and subscribers for recent periods.",
+    {
+      days: z
+        .enum(["7", "30"])
+        .default("7")
+        .describe("Number of days to analyze (7 or 30)"),
+    },
+    async ({ days }) => {
+      try {
+        const channelId = await getMyChannelId();
+        if (!channelId) {
+          throw new Error("Could not retrieve channel ID");
+        }
+
+        const numDays = parseInt(days);
+        const startDate = daysAgo(numDays);
+        const endDate = daysAgo(1); // Yesterday
+        
+        const analytics = getAnalyticsClient();
+
+        // Start with just the most basic metrics
+        const response = await analytics.reports.query({
+          ids: `channel==${channelId}`,
+          startDate,
+          endDate,
+          metrics: "views,subscribersGained", // Just these two simple metrics
+        });
+
+        const rows = response.data.rows || [];
+        
+        if (rows.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No analytics data available for the last ${days} days. This could mean:\n• Your channel is very new\n• Not enough activity in this period\n• Analytics data is still processing`,
+              },
+            ],
+          };
+        }
+
+        // Sum up the totals - simple and safe
+        let totalViews = 0;
+        let totalSubscribers = 0;
+        
+        rows.forEach((row: any[]) => {
+          if (row[0] !== undefined && row[0] !== null) totalViews += Number(row[0]) || 0;
+          if (row[1] !== undefined && row[1] !== null) totalSubscribers += Number(row[1]) || 0;
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `📊 **Simple Analytics** (Last ${days} days)\n\n` +
+                `📈 **Period:** ${startDate} to ${endDate}\n` +
+                `👀 **Total Views:** ${totalViews.toLocaleString()}\n` +
+                `👥 **New Subscribers:** ${totalSubscribers}\n` +
+                `📅 **Daily Average Views:** ${Math.round(totalViews / numDays).toLocaleString()}\n\n` +
+                `💡 This is basic analytics data from YouTube Analytics API.`
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting simple analytics:", error);
+        
+        let errorMessage = "Error getting analytics: ";
+        if (error.message?.includes("forbidden") || error.message?.includes("403")) {
+          errorMessage += "Analytics access denied. Your channel may need more watch time or the Analytics API may not be enabled.";
+        } else if (error.message?.includes("quotaExceeded")) {
+          errorMessage += "API quota exceeded. Please try again later.";
+        } else if (error.message?.includes("badRequest")) {
+          errorMessage += "Invalid request. This might be due to insufficient channel data.";
+        } else {
+          errorMessage += error.message || String(error);
+        }
+        
+        return {
+          content: [
+            {
+              type: "text",
+              text: errorMessage,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Tool to get recent videos
+  server.tool(
+    "youtube_getMyRecentVideos",
+    "Get your most recent uploaded videos with basic stats.",
+    {
+      maxResults: z
+        .number()
+        .int()
+        .min(1)
+        .max(25)
+        .default(10)
+        .describe("Number of recent videos to retrieve"),
+    },
+    async ({ maxResults }) => {
+      try {
+        const youtube = getYouTubeClient();
+        
+        // First get channel ID
+        const channelResponse = await youtube.channels.list({
+          part: ["id"],
+          mine: true,
+        });
+
+        const channelId = channelResponse.data.items?.[0]?.id;
+        if (!channelId) {
+          throw new Error("Could not retrieve channel ID");
+        }
+
+        // Get recent videos from the channel
+        const searchResponse = await youtube.search.list({
+          part: ["snippet"],
+          channelId: channelId,
+          order: "date",
+          type: ["video"],
+          maxResults: maxResults,
+        });
+
+        const videos = searchResponse.data.items || [];
+        
+        if (videos.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "No videos found on your channel.",
+              },
+            ],
+          };
+        }
+
+        // Get detailed stats for these videos
+        const videoIds = videos.map(video => video.id?.videoId).filter(Boolean);
+        const statsResponse = await youtube.videos.list({
+          part: ["statistics", "contentDetails"],
+          id: videoIds,
+        });
+
+        const statsMap = new Map();
+        statsResponse.data.items?.forEach(video => {
+          statsMap.set(video.id, {
+            views: video.statistics?.viewCount || "0",
+            likes: video.statistics?.likeCount || "0",
+            comments: video.statistics?.commentCount || "0",
+            duration: video.contentDetails?.duration || "Unknown"
+          });
+        });
+
+        const recentVideos = videos.map((video, index) => {
+          const videoId = video.id?.videoId || "";
+          const stats = statsMap.get(videoId) || { views: "0", likes: "0", comments: "0", duration: "Unknown" };
+          
+          return {
+            rank: index + 1,
+            title: video.snippet?.title || "Unknown Title",
+            videoId,
+            publishedAt: video.snippet?.publishedAt || "",
+            views: parseInt(stats.views).toLocaleString(),
+            likes: parseInt(stats.likes).toLocaleString(),
+            comments: parseInt(stats.comments).toLocaleString(),
+            duration: stats.duration,
+            url: `https://www.youtube.com/watch?v=${videoId}`,
+            thumbnailUrl: video.snippet?.thumbnails?.default?.url || ""
+          };
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `🎬 **Your ${maxResults} Most Recent Videos**\n\n` +
+                recentVideos
+                  .map(video => 
+                    `**${video.rank}. ${video.title}**\n` +
+                    `   📅 Published: ${new Date(video.publishedAt).toLocaleDateString()}\n` +
+                    `   👀 Views: ${video.views} | 👍 Likes: ${video.likes} | 💬 Comments: ${video.comments}\n` +
+                    `   🔗 ${video.url}\n`
+                  )
+                  .join("\n"),
+            },
+          ],
+        };
+      } catch (error: any) {
+        console.error("Error getting recent videos:", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error getting recent videos: ${error.message || String(error)}`,
+            },
+          ],
+        };
+      }
+    }
+  );
 }
