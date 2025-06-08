@@ -101,23 +101,13 @@ Try these questions with Claude Desktop:
 ### **📈 Channel Analytics**
 > *"Show me my YouTube channel performance for the past 30 days"*
 
-> *"What's my revenue per mille (RPM) and which videos are most profitable?"*
-
-> *"How has my subscriber growth been trending?"*
-
 ### **🎯 Content Strategy**  
 > *"What should I make a video about next in the AI/tech space?"*
 
 > *"Analyze my competitors and show me content opportunities I'm missing"*
 
-> *"Which of my video topics get the best engagement?"*
-
 ### **👥 Audience Insights**
 > *"Who are my viewers? Show me demographics and geography data"*
-
-> *"What devices do my viewers use and when do they watch?"*
-
-> *"How does my audience retention compare to industry averages?"*
 
 ## 🏗️ Architecture
 
