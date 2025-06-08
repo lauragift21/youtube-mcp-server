@@ -1,6 +1,6 @@
 # 🎬 YouTube MCP Server: Remote MCP on Cloudflare Workers
 
-A powerful Model Context Protocol (MCP) server that provides AI assistants with comprehensive YouTube analytics and channel management capabilities. Built with TypeScript, deployed on Cloudflare Workers, and secured with Google OAuth.
+A powerful Model Context Protocol (MCP) server that provides AI assistants with comprehensive YouTube analytics and channel management capabilities. Built with TypeScript, deployed on Cloudflare Workers, and secured with [Google OAuth](https://github.com/cloudflare/ai/tree/main/demos/remote-mcp-google-oauth).
 
 ## ✨ Features
 
@@ -137,9 +137,5 @@ Try these questions with Claude Desktop:
 - **[Claude Desktop](https://claude.ai/desktop)** - AI assistant with MCP support
 
 ---
-
-## 🙏 Acknowledgments
-
-Special thanks to [@vakharwalad23](https://github.com/vakharwalad23) and the [google-mcp-remote](https://github.com/vakharwalad23/google-mcp-remote) project for the foundational Google OAuth integration code that made this project possible.
 
 **Built with ❤️ by [Gift Egwuenu](https://github.com/lauragift21) | Powered by MCP & Cloudflare Workers**
