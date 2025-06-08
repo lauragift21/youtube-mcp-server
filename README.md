@@ -54,7 +54,7 @@ You can generate a random string for `COOKIE_ENCRYPTION_KEY`
 npx wrangler deploy
 ```
 
-### 4. Connect to Claude Desktop
+### Connect to Claude Desktop
 
 Add to your Claude Desktop configuration:
 
@@ -71,6 +71,14 @@ Add to your Claude Desktop configuration:
   }
 }
 ```
+
+### Connect to Cloudflare AI Playground
+
+You can connect your MCP server from the Cloudflare AI Playground, which is a remote MCP client:
+
+- Go to https://playground.ai.cloudflare.com/
+- Enter your deployed MCP server URL (remote-mcp-server-authless.<your-account>.workers.dev/sse)
+- You can now use your MCP tools directly from the playground!
 
 ## 🔧 Available Tools
 
