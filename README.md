@@ -1,4 +1,4 @@
-# 🎬 YouTube MCP Server: Remote MCP on Cloudflare Workers Demo
+# 🎬 YouTube MCP Server: Remote MCP on Cloudflare Workers
 
 A powerful Model Context Protocol (MCP) server that provides AI assistants with comprehensive YouTube analytics and channel management capabilities. Built with TypeScript, deployed on Cloudflare Workers, and secured with Google OAuth.
 
@@ -65,7 +65,7 @@ Add to your Claude Desktop configuration:
 ```json
 {
   "mcpServers": {
-    "youtube-copilot": {
+    "youtube-mcp-server": {
       "command": "npx",
       "args": [
         "mcp-remote",
