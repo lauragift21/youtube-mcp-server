@@ -20,10 +20,6 @@ A powerful Model Context Protocol (MCP) server that provides AI assistants with 
 - **Channel Information**: Get detailed channel stats and recent uploads
 - **Video Details**: Comprehensive metadata, stats, and engagement data
 
-## 🚀 Live Demo
-
-**Server URL**: `https://youtube-mcp-server.lauragift.workers.dev/sse`
-
 ## 🛠️ Quick Start
 
 ### Prerequisites
